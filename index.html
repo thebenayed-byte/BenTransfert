@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Transfert Point d'Accès</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+
+<style>
+body{
+    margin:0;
+    font-family:'Poppins',sans-serif;
+    background:linear-gradient(135deg,#0f172a,#1e3a8a);
+    color:white;
+    min-height:100vh;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+}
+
+.container{
+    width:95%;
+    max-width:500px;
+    padding:25px;
+    border-radius:25px;
+    background:rgba(255,255,255,0.06);
+    backdrop-filter: blur(12px);
+    box-shadow:0 0 40px rgba(0,0,0,0.2);
+}
+
+h1{
+    text-align:center;
+    font-size:1.8rem;
+}
+
+button{
+    width:100%;
+    padding:14px;
+    border:none;
+    border-radius:14px;
+    font-size:1rem;
+    margin-top:15px;
+    cursor:pointer;
+    transition:0.3s;
+}
+
+.primary{
+    background:#3b82f6;
+    color:white;
+}
+
+.primary:hover{
+    background:#2563eb;
+}
+
+input[type=file]{
+    width:100%;
+    padding:12px;
+    margin-top:15px;
+    background:rgba(255,255,255,0.08);
+    border-radius:12px;
+}
+
+.status{
+    margin-top:20px;
+    text-align:center;
+    min-height:40px;
+}
+
+.peer-id{
+    background:rgba(255,255,255,0.08);
+    padding:12px;
+    border-radius:12px;
+    margin-top:15px;
+    text-align:center;
+    word-break:break-all;
+}
+
+@media(max-width:600px){
+    h1{font-size:1.4rem;}
+}
+</style>
+</head>
+
+<body>
+<div class="container">
+<h1>📂 Transfert WiFi Point d'Accès</h1>
+
+<button class="primary" onclick="startConnection()">Créer / Rejoindre un réseau</button>
+
+<div class="peer-id" id="peerId">ID: ---</div>
+
+<input type="text" id="remoteId" placeholder="Collez l'ID du partenaire">
+
+<input type="file" id="fileInput">
+
+<button class="primary" onclick="sendFile()">Envoyer le fichier</button>
+
+<div class="status" id="status">Prêt</div>
+</div>
+
+<script src="https://unpkg.com/simple-peer@9.11.1/simplepeer.min.js"></script>
+<script>
+let peer;
+let localId = Math.random().toString(36).substr(2,9);
+
+const peerIdBox = document.getElementById('peerId');
+const statusBox = document.getElementById('status');
+
+peerIdBox.innerText = "ID: " + localId;
+
+function startConnection(){
+    peer = new SimplePeer({ initiator: location.hash === "#host", trickle:false });
+
+    peer.on('signal', data=>{
+        alert("Copiez ce signal et envoyez à votre partenaire:\n"+JSON.stringify(data));
+    });
+
+    peer.on('connect', ()=>{
+        statusBox.innerText = "Connecté";
+    });
+
+    peer.on('data', data=>{
+        const blob = new Blob([data]);
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = "fichier_recu";
+        a.click();
+        statusBox.innerText = "Fichier reçu";
+    });
+}
+
+function sendFile(){
+    if(!peer || !peer.connected){
+        alert("Connectez d'abord le réseau");
+        return;
+    }
+
+    const file = document.getElementById('fileInput').files[0];
+    if(!file){
+        alert("Choisissez un fichier");
+        return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = ()=>{
+        peer.send(reader.result);
+        statusBox.innerText = "Fichier envoyé";
+    };
+    reader.readAsArrayBuffer(file);
+}
+</script>
+</body>
+</html>
