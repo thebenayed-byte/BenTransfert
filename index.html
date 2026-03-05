@@ -3,36 +3,32 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Transfert Point d'Accès</title>
-
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+<title>Transfert WiFi Local</title>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;600&display=swap" rel="stylesheet">
 
 <style>
 body{
     margin:0;
-    font-family:'Poppins',sans-serif;
-    background:linear-gradient(135deg,#0f172a,#1e3a8a);
+    font-family:Poppins,sans-serif;
+    background:linear-gradient(135deg,#020617,#1e293b);
     color:white;
-    min-height:100vh;
     display:flex;
     justify-content:center;
     align-items:center;
+    min-height:100vh;
 }
 
 .container{
     width:95%;
-    max-width:500px;
-    padding:25px;
-    border-radius:25px;
+    max-width:420px;
     background:rgba(255,255,255,0.06);
-    backdrop-filter: blur(12px);
-    box-shadow:0 0 40px rgba(0,0,0,0.2);
+    backdrop-filter:blur(15px);
+    padding:25px;
+    border-radius:28px;
+    box-shadow:0 0 40px rgba(0,0,0,.3);
 }
 
-h1{
-    text-align:center;
-    font-size:1.8rem;
-}
+h1{text-align:center;font-size:1.6rem;}
 
 button{
     width:100%;
@@ -40,26 +36,19 @@ button{
     border:none;
     border-radius:14px;
     font-size:1rem;
-    margin-top:15px;
+    margin-top:14px;
     cursor:pointer;
-    transition:0.3s;
 }
 
-.primary{
-    background:#3b82f6;
-    color:white;
-}
+.primary{background:#3b82f6;color:white;}
+.primary:hover{background:#2563eb;}
 
-.primary:hover{
-    background:#2563eb;
-}
-
-input[type=file]{
+input{
     width:100%;
     padding:12px;
-    margin-top:15px;
-    background:rgba(255,255,255,0.08);
+    border:none;
     border-radius:12px;
+    margin-top:12px;
 }
 
 .status{
@@ -68,34 +57,33 @@ input[type=file]{
     min-height:40px;
 }
 
-.peer-id{
+.peer-box{
     background:rgba(255,255,255,0.08);
     padding:12px;
     border-radius:12px;
     margin-top:15px;
-    text-align:center;
     word-break:break-all;
+    font-size:.9rem;
 }
 
-@media(max-width:600px){
-    h1{font-size:1.4rem;}
-}
 </style>
 </head>
 
 <body>
 <div class="container">
-<h1>📂 Transfert WiFi Point d'Accès</h1>
+<h1>📂 WiFi Transfert Local</h1>
 
-<button class="primary" onclick="startConnection()">Créer / Rejoindre un réseau</button>
+<button class="primary" onclick="createHost()">Créer le réseau (Host)</button>
+<button class="primary" onclick="joinNetwork()">Rejoindre le réseau (Join)</button>
 
-<div class="peer-id" id="peerId">ID: ---</div>
+<div class="peer-box" id="signalBox">Signal: ---</div>
 
-<input type="text" id="remoteId" placeholder="Collez l'ID du partenaire">
+<input type="text" id="remoteSignal" placeholder="Collez le signal partenaire">
 
 <input type="file" id="fileInput">
 
-<button class="primary" onclick="sendFile()">Envoyer le fichier</button>
+<button class="primary" onclick="connectPeer()">Connecter</button>
+<button class="primary" onclick="sendFile()">Envoyer fichier</button>
 
 <div class="status" id="status">Prêt</div>
 </div>
@@ -103,51 +91,60 @@ input[type=file]{
 <script src="https://unpkg.com/simple-peer@9.11.1/simplepeer.min.js"></script>
 <script>
 let peer;
-let localId = Math.random().toString(36).substr(2,9);
+let currentSignal;
 
-const peerIdBox = document.getElementById('peerId');
-const statusBox = document.getElementById('status');
+const signalBox=document.getElementById('signalBox');
+const statusBox=document.getElementById('status');
 
-peerIdBox.innerText = "ID: " + localId;
+function createHost(){
+    peer = new SimplePeer({ initiator:true, trickle:false });
+    setupPeer();
+}
 
-function startConnection(){
-    peer = new SimplePeer({ initiator: location.hash === "#host", trickle:false });
+function joinNetwork(){
+    peer = new SimplePeer({ initiator:false, trickle:false });
+    setupPeer();
+}
 
+function setupPeer(){
     peer.on('signal', data=>{
-        alert("Copiez ce signal et envoyez à votre partenaire:\n"+JSON.stringify(data));
+        currentSignal=data;
+        signalBox.innerText = JSON.stringify(data);
     });
 
     peer.on('connect', ()=>{
-        statusBox.innerText = "Connecté";
+        statusBox.innerText="✅ Connecté";
     });
 
     peer.on('data', data=>{
-        const blob = new Blob([data]);
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = "fichier_recu";
+        const blob=new Blob([data]);
+        const url=URL.createObjectURL(blob);
+        const a=document.createElement('a');
+        a.href=url;
+        a.download="fichier_recu";
         a.click();
-        statusBox.innerText = "Fichier reçu";
+        statusBox.innerText="📥 Fichier reçu";
     });
 }
 
+function connectPeer(){
+    const remote=document.getElementById('remoteSignal').value;
+    if(!peer){alert("Créez ou rejoignez d'abord le réseau");return;}
+    try{
+        peer.signal(JSON.parse(remote));
+        statusBox.innerText="🔄 Connexion...";
+    }catch(e){alert("Signal invalide");}
+}
+
 function sendFile(){
-    if(!peer || !peer.connected){
-        alert("Connectez d'abord le réseau");
-        return;
-    }
+    if(!peer || !peer.connected){alert("Pas connecté");return;}
+    const file=document.getElementById('fileInput').files[0];
+    if(!file){alert("Choisissez un fichier");return;}
 
-    const file = document.getElementById('fileInput').files[0];
-    if(!file){
-        alert("Choisissez un fichier");
-        return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = ()=>{
+    const reader=new FileReader();
+    reader.onload=()=>{
         peer.send(reader.result);
-        statusBox.innerText = "Fichier envoyé";
+        statusBox.innerText="📤 Fichier envoyé";
     };
     reader.readAsArrayBuffer(file);
 }
